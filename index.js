@@ -110,6 +110,36 @@ async function run() {
       res.send(result);
     });
 
+    // Get loans for Home Page (Limit 6 and filtered by showOnHome)
+    app.get("/loans/home", async (req, res) => {
+      const query = { showOnHome: true };
+      const result = await loansCollection.find(query).limit(6).toArray();
+      res.send(result);
+    });
+
+    app.get("/all-loans", async (req, res) => {
+      const { page, limit, search, category } = req.query;
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      let query = {};
+      if (search) {
+        query.loanTitle = { $regex: search, $options: "i" };
+      }
+      if (category) {
+        query.category = category;
+      }
+
+      const loans = await loansCollection
+        .find(query)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .toArray();
+
+      const total = await loansCollection.countDocuments(query);
+
+      res.send({ loans, total });
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
