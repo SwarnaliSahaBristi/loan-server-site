@@ -110,6 +110,12 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/users/role/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await usersCollection.findOne({ email });
+      res.send({ role: result?.role });
+    });
+
     // Get loans for Home Page (Limit 6 and filtered by showOnHome)
     app.get("/loans/home", async (req, res) => {
       const query = { showOnHome: true };
@@ -144,7 +150,62 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await loansCollection.findOne(query);
-      res.send(result)
+      res.send(result);
+    });
+
+    // POST a new loan application
+    app.post("/loan-applications", async (req, res) => {
+      const applicationData = req.body;
+      const result = await applicationsCollection.insertOne(applicationData);
+      res.send(result);
+    });
+
+    // Update application after payment
+    app.patch("/loan-application/payment/:id", async (req, res) => {
+      const id = req.params.id;
+      const paymentData = req.body;
+
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          applicationFeeStatus: "paid",
+          paymentInfo: {
+            email: paymentData.email,
+            transactionId: paymentData.transactionId,
+            paidAt: new Date(),
+          },
+        },
+      };
+
+      const result = await applicationsCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+
+    app.patch("/loan-application/approve/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+
+      const updatedDoc = {
+        $set: {
+          status: "approved",
+          approvedAt: new Date(),
+        },
+      };
+
+      const result = await applicationsCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+
+    // Get loans for a specific borrower
+    app.get("/my-loans", async (req, res) => {
+      const email = req.query.email;
+      if (!email) {
+        return res.status(400).send({ message: "Email is required" });
+      }
+
+      const query = { userEmail: email };
+      const result = await applicationsCollection.find(query).toArray();
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection
