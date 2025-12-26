@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const admin = require("firebase-admin");
 const port = process.env.PORT || 3000;
@@ -121,7 +121,7 @@ async function run() {
       const { page, limit, search, category } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      let query = {};
+      let query = { showOnHome: true };
       if (search) {
         query.loanTitle = { $regex: search, $options: "i" };
       }
@@ -138,6 +138,13 @@ async function run() {
       const total = await loansCollection.countDocuments(query);
 
       res.send({ loans, total });
+    });
+
+    app.get("/loan/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await loansCollection.findOne(query);
+      res.send(result)
     });
 
     // Send a ping to confirm a successful connection
