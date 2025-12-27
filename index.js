@@ -154,57 +154,89 @@ async function run() {
     });
 
     // POST a new loan application
-    app.post("/loan-applications", async (req, res) => {
+    app.post("/loan-applications", verifyJWT, async (req, res) => {
       const applicationData = req.body;
       const result = await applicationsCollection.insertOne(applicationData);
       res.send(result);
     });
 
-    // Update application after payment
-    app.patch("/loan-application/payment/:id", async (req, res) => {
-      const id = req.params.id;
-      const paymentData = req.body;
-
-      const filter = { _id: new ObjectId(id) };
-      const updatedDoc = {
-        $set: {
-          applicationFeeStatus: "paid",
-          paymentInfo: {
-            email: paymentData.email,
-            transactionId: paymentData.transactionId,
-            paidAt: new Date(),
-          },
-        },
-      };
-
-      const result = await applicationsCollection.updateOne(filter, updatedDoc);
-      res.send(result);
-    });
-
-    app.patch("/loan-application/approve/:id", async (req, res) => {
-      const id = req.params.id;
-      const filter = { _id: new ObjectId(id) };
-
-      const updatedDoc = {
-        $set: {
-          status: "approved",
-          approvedAt: new Date(),
-        },
-      };
-
-      const result = await applicationsCollection.updateOne(filter, updatedDoc);
-      res.send(result);
-    });
-
     // Get loans for a specific borrower
-    app.get("/my-loans", async (req, res) => {
+    app.get("/my-loans", verifyJWT, async (req, res) => {
       const email = req.query.email;
-      if (!email) {
-        return res.status(400).send({ message: "Email is required" });
-      }
-
       const query = { userEmail: email };
       const result = await applicationsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    //  Create Stripe Session
+    app.post("/create-checkout-session", async (req, res) => {
+      const { loanId, loanName, loanImage, email } = req.body;
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        customer_email: email,
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: loanName,
+                images: [loanImage],
+                description: `Application fee for ${loanName}`,
+              },
+              unit_amount: 1000,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        metadata: { loanId, email },
+        success_url: `${process.env.CLIENT_DOMAIN}/dashboard/my-loans?session_id={CHECKOUT_SESSION_ID}&loanId=${loanId}`,
+        cancel_url: `${process.env.CLIENT_DOMAIN}/dashboard/my-loans`,
+      });
+      res.send({ url: session.url });
+    });
+
+    //Verify Payment after popup closes
+    app.post("/loan-applications/verify-payment", async (req, res) => {
+      const { loanId, sessionId, email } = req.body;
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (session.payment_status === "paid") {
+        const filter = { _id: new ObjectId(loanId) };
+        const updateDoc = {
+          $set: {
+            applicationFeeStatus: "paid",
+            paymentInfo: {
+              email: email,
+              transactionId: session.payment_intent,
+              paidAt: new Date(),
+            },
+          },
+        };
+        const result = await applicationsCollection.updateOne(
+          filter,
+          updateDoc
+        );
+        return res.status(200).send({ success: true, result });
+      }
+      res.status(400).send({ message: "Payment not completed" });
+    });
+
+    app.get("/loan-application/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await applicationsCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
+    });
+
+    app.patch("/loan-applications/cancel/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const application = await applicationsCollection.findOne(filter);
+      if (!application || application.status !== "pending") {
+        return res.status(400).send({ message: "Cannot cancel this loan." });
+      }
+      const result = await applicationsCollection.deleteOne(filter);
       res.send(result);
     });
 
