@@ -169,7 +169,7 @@ async function run() {
     });
 
     //  Create Stripe Session
-    app.post("/create-checkout-session", async (req, res) => {
+    app.post("/create-checkout-session", verifyJWT, async (req, res) => {
       const { loanId, loanName, loanImage, email } = req.body;
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
@@ -197,31 +197,35 @@ async function run() {
     });
 
     //Verify Payment after popup closes
-    app.post("/loan-applications/verify-payment", async (req, res) => {
-      const { loanId, sessionId, email } = req.body;
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
-      if (session.payment_status === "paid") {
-        const filter = { _id: new ObjectId(loanId) };
-        const updateDoc = {
-          $set: {
-            applicationFeeStatus: "paid",
-            paymentInfo: {
-              email: email,
-              transactionId: session.payment_intent,
-              paidAt: new Date(),
+    app.post(
+      "/loan-applications/verify-payment",
+      verifyJWT,
+      async (req, res) => {
+        const { loanId, sessionId, email } = req.body;
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status === "paid") {
+          const filter = { _id: new ObjectId(loanId) };
+          const updateDoc = {
+            $set: {
+              applicationFeeStatus: "paid",
+              paymentInfo: {
+                email: email,
+                transactionId: session.payment_intent,
+                paidAt: new Date(),
+              },
             },
-          },
-        };
-        const result = await applicationsCollection.updateOne(
-          filter,
-          updateDoc
-        );
-        return res.status(200).send({ success: true, result });
+          };
+          const result = await applicationsCollection.updateOne(
+            filter,
+            updateDoc
+          );
+          return res.status(200).send({ success: true, result });
+        }
+        res.status(400).send({ message: "Payment not completed" });
       }
-      res.status(400).send({ message: "Payment not completed" });
-    });
+    );
 
-    app.get("/loan-application/:id", async (req, res) => {
+    app.get("/loan-application/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const result = await applicationsCollection.findOne({
         _id: new ObjectId(id),
@@ -229,7 +233,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/loan-applications/cancel/:id", async (req, res) => {
+    app.patch("/loan-applications/cancel/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const application = await applicationsCollection.findOne(filter);
@@ -237,6 +241,37 @@ async function run() {
         return res.status(400).send({ message: "Cannot cancel this loan." });
       }
       const result = await applicationsCollection.deleteOne(filter);
+      res.send(result);
+    });
+
+    // POST a new loan offering (Manager Only)
+    app.post("/loans", verifyJWT, verifyManager, async (req, res) => {
+      const loanData = req.body;
+      const result = await loansCollection.insertOne(loanData);
+      res.send(result);
+    });
+
+    //  Get all loans (Manager specific)
+    app.get("/loans", verifyJWT, verifyManager, async (req, res) => {
+      const result = await loansCollection.find().toArray();
+      res.send({ loans: result });
+    });
+
+    //  Delete a loan
+    app.delete("/loans/:id", verifyJWT, verifyManager, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await loansCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.patch("/loans/:id", verifyJWT, verifyManager, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: { ...req.body },
+      };
+      const result = await loansCollection.updateOne(filter, updatedDoc);
       res.send(result);
     });
 
