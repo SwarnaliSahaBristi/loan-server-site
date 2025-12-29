@@ -534,6 +534,49 @@ async function run() {
       }
     );
 
+    app.patch(
+      "/admin/users/:id/suspend",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const { reason, feedback } = req.body;
+
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            status: "suspended",
+            suspendReason: reason,
+            adminFeedback: feedback,
+          },
+        };
+
+        const result = await usersCollection.updateOne(filter, updatedDoc);
+        res.send(result);
+      }
+    );
+
+    app.patch(
+      "/admin/users/:id/approve",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            status: "approved",
+          },
+        };
+        try {
+          const result = await usersCollection.updateOne(filter, updatedDoc);
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({ message: "Failed to approve user" });
+        }
+      }
+    );
+
     // Get users with filtering (Search, Role, Status)
     app.get(
       "/admin/users-management",
@@ -567,13 +610,18 @@ async function run() {
     );
 
     // 1. Get all loan applications (with optional filtering)
-    app.get("/admin/loan-applications", verifyJWT, verifyAdmin, async (req, res) => {
+    app.get(
+      "/admin/loan-applications",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
         const result = await applicationsCollection
           .find()
           .sort({ appliedAt: -1 })
           .toArray();
         res.send(result);
-    });
+      }
+    );
 
     // 2. Update Loan Application Status
     app.patch(
@@ -583,31 +631,30 @@ async function run() {
       async (req, res) => {
         const id = req.params.id;
         const { status, reason } = req.body;
-          const filter = { _id: new ObjectId(id) };
-          const updateDoc = {
-            $set: {
-              status: status,
-              adminReason: reason || "",
-              updatedAt: new Date(),
-            },
-          };
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            status: status,
+            adminReason: reason || "",
+            updatedAt: new Date(),
+          },
+        };
 
-          const result = await loanCollection.updateOne(filter, updateDoc);
+        const result = await loanCollection.updateOne(filter, updateDoc);
 
-          if (result.modifiedCount > 0) {
-            res.send({
-              message: `Loan application ${status} successfully`,
-              result,
-            });
-          } else {
-            res
-              .status(404)
-              .send({
-                message: "Loan application not found or no changes made",
-              });
-          }
+        if (result.modifiedCount > 0) {
+          res.send({
+            message: `Loan application ${status} successfully`,
+            result,
+          });
+        } else {
+          res.status(404).send({
+            message: "Loan application not found or no changes made",
+          });
+        }
       }
     );
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
