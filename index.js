@@ -565,6 +565,49 @@ async function run() {
         res.send(result);
       }
     );
+
+    // 1. Get all loan applications (with optional filtering)
+    app.get("/admin/loan-applications", verifyJWT, verifyAdmin, async (req, res) => {
+        const result = await applicationsCollection
+          .find()
+          .sort({ appliedAt: -1 })
+          .toArray();
+        res.send(result);
+    });
+
+    // 2. Update Loan Application Status
+    app.patch(
+      "/admin/loan-applications/:id/status",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const { status, reason } = req.body;
+          const filter = { _id: new ObjectId(id) };
+          const updateDoc = {
+            $set: {
+              status: status,
+              adminReason: reason || "",
+              updatedAt: new Date(),
+            },
+          };
+
+          const result = await loanCollection.updateOne(filter, updateDoc);
+
+          if (result.modifiedCount > 0) {
+            res.send({
+              message: `Loan application ${status} successfully`,
+              result,
+            });
+          } else {
+            res
+              .status(404)
+              .send({
+                message: "Loan application not found or no changes made",
+              });
+          }
+      }
+    );
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
