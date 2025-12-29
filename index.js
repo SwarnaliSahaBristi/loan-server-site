@@ -396,9 +396,85 @@ async function run() {
       }
     );
 
+    //get all loans for admin
     app.get("/admin/loans", verifyJWT, verifyAdmin, async (req, res) => {
-        const result = await loansCollection.find().toArray();
-        res.send(result);
+      const result = await loansCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/admin/loans/:id", verifyJWT, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await loansCollection.findOne(query);
+      if (!result) {
+        return res.status(404).send({ message: "Loan not found" });
+      }
+      res.send(result);
+    });
+
+    app.patch(
+      "/admin/loans/:id/show-on-home",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        try {
+          const id = req.params.id;
+          const { showOnHome } = req.body;
+
+          const filter = { _id: new ObjectId(id) };
+          const updateDoc = {
+            $set: { showOnHome: showOnHome },
+          };
+
+          const result = await loansCollection.updateOne(filter, updateDoc);
+          res.send(result);
+        } catch (error) {
+          res.status(500).send({
+            message: "Failed to toggle visibility",
+            error: error.message,
+          });
+        }
+      }
+    );
+
+    // Update a loan's details
+    app.put("/admin/loans/:id", verifyJWT, verifyAdmin, async (req, res) => {
+        const id = req.params.id;
+        const updatedData = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            loanTitle: updatedData.loanTitle,
+            description: updatedData.description,
+            category: updatedData.category,
+            interestRate: parseFloat(updatedData.interestRate),
+            maxLimit: parseFloat(updatedData.maxLimit),
+            emiPlans: updatedData.emiPlans,
+            showOnHome: updatedData.showOnHome,
+            requiredDocuments: updatedData.requiredDocuments,
+            loanImage: updatedData.loanImage,
+            updatedAt: new Date(),
+          },
+        };
+
+        const result = await loansCollection.updateOne(filter, updatedDoc);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Loan not found" });
+        }
+
+        res.send({
+          success: true,
+          message: "Loan updated successfully",
+          result,
+        });
+    });
+
+    app.delete("/admin/loans/:id", verifyJWT, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await loansCollection.deleteOne(query);
+      res.send(result);
     });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
