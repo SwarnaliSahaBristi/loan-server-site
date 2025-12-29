@@ -275,6 +275,82 @@ async function run() {
       res.send(result);
     });
 
+    // Get loan applications by status (for Managers)
+    app.get(
+      "/manager/loan-applications",
+      verifyJWT,
+      verifyManager,
+      async (req, res) => {
+        const status = req.query.status;
+        let query = {};
+        if (status) {
+          query.status = status;
+        }
+        const result = await applicationsCollection.find(query).toArray();
+        res.send(result);
+      }
+    );
+
+    // Approve a loan application
+    app.patch(
+      "/loan-applications/manager/:id/approve",
+      verifyJWT,
+      verifyManager,
+      async (req, res) => {
+        try {
+          const id = req.params.id;
+          if (!ObjectId.isValid(id)) {
+            return res.status(400).send({ message: "Invalid ID format" });
+          }
+
+          const filter = { _id: new ObjectId(id) };
+          const updateDoc = {
+            $set: { status: "approved" },
+          };
+          const result = await applicationsCollection.updateOne(
+            filter,
+            updateDoc
+          );
+
+          if (result.modifiedCount > 0) {
+            res.send(result);
+          } else {
+            res.status(404).send({ message: "Application not found" });
+          }
+        } catch (error) {
+          console.error("Approve Error:", error);
+          res
+            .status(500)
+            .send({ message: "Internal Server Error", error: error.message });
+        }
+      }
+    );
+
+    // Reject a loan application with a reason
+    app.patch(
+      "/loan-applications/manager/:id/reject",
+      verifyJWT,
+      verifyManager,
+      async (req, res) => {
+        const id = req.params.id;
+        const { reason } = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            status: "rejected",
+            rejectionReason: reason,
+            rejectedAt: new Date(),
+            managedBy: req.user.email,
+          },
+        };
+        const result = await applicationsCollection.updateOne(
+          filter,
+          updateDoc
+        );
+        res.send(result);
+      }
+    );
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
