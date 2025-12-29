@@ -101,7 +101,7 @@ async function run() {
       const newUser = {
         ...userData,
         role: userData.role || "borrower",
-        status: "active",
+        status: "approved",
         created_at: new Date().toISOString(),
         last_loggedIn: new Date().toISOString(),
       };
@@ -439,35 +439,35 @@ async function run() {
 
     // Update a loan's details
     app.put("/admin/loans/:id", verifyJWT, verifyAdmin, async (req, res) => {
-        const id = req.params.id;
-        const updatedData = req.body;
-        const filter = { _id: new ObjectId(id) };
-        const updatedDoc = {
-          $set: {
-            loanTitle: updatedData.loanTitle,
-            description: updatedData.description,
-            category: updatedData.category,
-            interestRate: parseFloat(updatedData.interestRate),
-            maxLimit: parseFloat(updatedData.maxLimit),
-            emiPlans: updatedData.emiPlans,
-            showOnHome: updatedData.showOnHome,
-            requiredDocuments: updatedData.requiredDocuments,
-            loanImage: updatedData.loanImage,
-            updatedAt: new Date(),
-          },
-        };
+      const id = req.params.id;
+      const updatedData = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          loanTitle: updatedData.loanTitle,
+          description: updatedData.description,
+          category: updatedData.category,
+          interestRate: parseFloat(updatedData.interestRate),
+          maxLimit: parseFloat(updatedData.maxLimit),
+          emiPlans: updatedData.emiPlans,
+          showOnHome: updatedData.showOnHome,
+          requiredDocuments: updatedData.requiredDocuments,
+          loanImage: updatedData.loanImage,
+          updatedAt: new Date(),
+        },
+      };
 
-        const result = await loansCollection.updateOne(filter, updatedDoc);
+      const result = await loansCollection.updateOne(filter, updatedDoc);
 
-        if (result.matchedCount === 0) {
-          return res.status(404).send({ message: "Loan not found" });
-        }
+      if (result.matchedCount === 0) {
+        return res.status(404).send({ message: "Loan not found" });
+      }
 
-        res.send({
-          success: true,
-          message: "Loan updated successfully",
-          result,
-        });
+      res.send({
+        success: true,
+        message: "Loan updated successfully",
+        result,
+      });
     });
 
     app.delete("/admin/loans/:id", verifyJWT, verifyAdmin, async (req, res) => {
@@ -476,6 +476,57 @@ async function run() {
       const result = await loansCollection.deleteOne(query);
       res.send(result);
     });
+
+    app.get("/admin/users", verifyJWT, verifyAdmin, async (req, res) => {
+      const { search, role, status, page = 1, limit = 10 } = req.query;
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      let query = {};
+      if (search) {
+        query.$or = [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ];
+      }
+      if (role) {
+        query.role = role;
+      }
+      if (status) {
+        query.status = status;
+      }
+      const users = await usersCollection
+        .find(query)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .toArray();
+      const total = await usersCollection.countDocuments(query);
+
+      res.send({ users, total });
+    });
+
+    app.patch(
+      "/admin/users/:id/role",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+          const id = req.params.id;
+          const { role } = req.body;
+
+          const filter = { _id: new ObjectId(id) };
+          const updateDoc = {
+            $set: { role: role },
+          };
+
+          const result = await usersCollection.updateOne(filter, updateDoc);
+
+          if (result.matchedCount === 0) {
+            return res
+              .status(404)
+              .send({ message: "User not found in database" });
+          }
+
+          res.send(result);
+      }
+    );
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
