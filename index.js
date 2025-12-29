@@ -351,6 +351,51 @@ async function run() {
       }
     );
 
+    // Get approve loan applications
+    app.get(
+      "/manager/loan-applications",
+      verifyJWT,
+      verifyManager,
+      async (req, res) => {
+        const status = req.query.status;
+        let query = {};
+
+        if (status) {
+          query.status = status;
+        }
+        const result = await applicationsCollection
+          .find(query)
+          .sort({ approvedAt: -1, appliedAt: -1 })
+          .toArray();
+
+        res.send(result);
+      }
+    );
+
+    app.patch(
+      "/loan-applications/manager/:id/approve",
+      verifyJWT,
+      verifyManager,
+      async (req, res) => {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+
+        const updateDoc = {
+          $set: {
+            status: "approved",
+            approvedAt: new Date(),
+            handledBy: req.user.email,
+          },
+        };
+
+        const result = await applicationsCollection.updateOne(
+          filter,
+          updateDoc
+        );
+        res.send(result);
+      }
+    );
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
