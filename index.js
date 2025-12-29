@@ -480,7 +480,13 @@ async function run() {
     app.get("/admin/users", verifyJWT, verifyAdmin, async (req, res) => {
       const { search, role, status, page = 1, limit = 10 } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
-      let query = {};
+      const adminEmail = req.tokenEmail;
+      if (!adminEmail) {
+        return res.status(401).send({ message: "Unauthorized access" });
+      }
+      let query = {
+        email: { $ne: adminEmail },
+      };
       if (search) {
         query.$or = [
           { name: { $regex: search, $options: "i" } },
@@ -508,23 +514,55 @@ async function run() {
       verifyJWT,
       verifyAdmin,
       async (req, res) => {
-          const id = req.params.id;
-          const { role } = req.body;
+        const id = req.params.id;
+        const { role } = req.body;
 
-          const filter = { _id: new ObjectId(id) };
-          const updateDoc = {
-            $set: { role: role },
-          };
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: { role: role },
+        };
 
-          const result = await usersCollection.updateOne(filter, updateDoc);
+        const result = await usersCollection.updateOne(filter, updateDoc);
 
-          if (result.matchedCount === 0) {
-            return res
-              .status(404)
-              .send({ message: "User not found in database" });
-          }
+        if (result.matchedCount === 0) {
+          return res
+            .status(404)
+            .send({ message: "User not found in database" });
+        }
 
-          res.send(result);
+        res.send(result);
+      }
+    );
+
+    // Get users with filtering (Search, Role, Status)
+    app.get(
+      "/admin/users-management",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const { search, role, status } = req.query;
+        const adminEmail = req.tokenEmail;
+        if (!adminEmail) {
+          return res.status(401).send({ message: "Unauthorized access" });
+        }
+        let query = {
+          email: { $ne: adminEmail },
+        };
+        if (search) {
+          query.$and = [
+            { email: { $ne: adminEmail } },
+            {
+              $or: [
+                { email: { $regex: search, $options: "i" } },
+                { name: { $regex: search, $options: "i" } },
+              ],
+            },
+          ];
+        }
+        if (role) query.role = role;
+        if (status) query.status = status;
+        const result = await usersCollection.find(query).toArray();
+        res.send(result);
       }
     );
     // Send a ping to confirm a successful connection
