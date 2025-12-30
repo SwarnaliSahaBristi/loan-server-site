@@ -17,11 +17,7 @@ const app = express();
 // middleware
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "https://b12-m11-session.web.app",
-    ],
+    origin: [process.env.CLIENT_DOMAIN],
     credentials: true,
     optionSuccessStatus: 200,
   })
@@ -640,7 +636,7 @@ async function run() {
           },
         };
 
-        const result = await loanCollection.updateOne(filter, updateDoc);
+        const result = await applicationsCollection.updateOne(filter, updateDoc);
 
         if (result.modifiedCount > 0) {
           res.send({
