@@ -78,7 +78,7 @@ GET /api/loans
 PATCH /api/loans/:id/status
 🔐 Authentication
 Uses JWT (JSON Web Tokens)
-Protected routes require token in headers:
+Protected routes require token:
 Authorization: Bearer <your_token>
 🧪 Testing
 
@@ -111,3 +111,13 @@ Swarnali Saha Bristi
 ⭐ Support
 
 If you found this project helpful, consider giving it a ⭐ on GitHub!
+
+🔥 Why your old version broke
+
+Your previous version:
+
+had no line breaks
+no ## headings
+no triple backticks ``` for code
+
+👉 GitHub treated everything as one paragraph
