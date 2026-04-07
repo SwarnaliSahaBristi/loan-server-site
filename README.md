@@ -41,6 +41,7 @@ Environment: dotenv
 Version Control: Git & GitHub
 📁 Project Structure
 LoanLink-Server/
+│── vercel.json
 │── serviceKeyConverter.js
 │── index.js
 │── .env
