@@ -6,7 +6,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const admin = require("firebase-admin");
 const port = process.env.PORT || 3000;
 const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
-  "utf-8"
+  "utf-8",
 );
 const serviceAccount = JSON.parse(decoded);
 admin.initializeApp({
@@ -20,7 +20,7 @@ app.use(
     origin: [process.env.CLIENT_DOMAIN],
     credentials: true,
     optionSuccessStatus: 200,
-  })
+  }),
 );
 app.use(express.json());
 
@@ -103,6 +103,24 @@ async function run() {
       };
 
       const result = await usersCollection.insertOne(newUser);
+      res.send(result);
+    });
+
+    app.patch("/users/profile", verifyJWT, async (req, res) => {
+      const email = req.tokenEmail;
+      const { name, photo } = req.body;
+
+      const result = await usersCollection.updateOne(
+        { email },
+        {
+          $set: {
+            name,
+            photo,
+            updated_at: new Date(),
+          },
+        },
+      );
+
       res.send(result);
     });
 
@@ -213,12 +231,12 @@ async function run() {
           };
           const result = await applicationsCollection.updateOne(
             filter,
-            updateDoc
+            updateDoc,
           );
           return res.status(200).send({ success: true, result });
         }
         res.status(400).send({ message: "Payment not completed" });
-      }
+      },
     );
 
     app.get("/loan-application/:id", verifyJWT, async (req, res) => {
@@ -284,7 +302,7 @@ async function run() {
         }
         const result = await applicationsCollection.find(query).toArray();
         res.send(result);
-      }
+      },
     );
 
     // Approve a loan application
@@ -305,7 +323,7 @@ async function run() {
           };
           const result = await applicationsCollection.updateOne(
             filter,
-            updateDoc
+            updateDoc,
           );
 
           if (result.modifiedCount > 0) {
@@ -319,7 +337,7 @@ async function run() {
             .status(500)
             .send({ message: "Internal Server Error", error: error.message });
         }
-      }
+      },
     );
 
     // Reject a loan application with a reason
@@ -341,10 +359,10 @@ async function run() {
         };
         const result = await applicationsCollection.updateOne(
           filter,
-          updateDoc
+          updateDoc,
         );
         res.send(result);
-      }
+      },
     );
 
     // Get approve loan applications
@@ -365,7 +383,7 @@ async function run() {
           .toArray();
 
         res.send(result);
-      }
+      },
     );
 
     app.patch(
@@ -386,10 +404,10 @@ async function run() {
 
         const result = await applicationsCollection.updateOne(
           filter,
-          updateDoc
+          updateDoc,
         );
         res.send(result);
-      }
+      },
     );
 
     //get all loans for admin
@@ -430,7 +448,7 @@ async function run() {
             error: error.message,
           });
         }
-      }
+      },
     );
 
     // Update a loan's details
@@ -527,7 +545,7 @@ async function run() {
         }
 
         res.send(result);
-      }
+      },
     );
 
     app.patch(
@@ -549,7 +567,7 @@ async function run() {
 
         const result = await usersCollection.updateOne(filter, updatedDoc);
         res.send(result);
-      }
+      },
     );
 
     app.patch(
@@ -570,7 +588,7 @@ async function run() {
         } catch (error) {
           res.status(500).send({ message: "Failed to approve user" });
         }
-      }
+      },
     );
 
     // Get users with filtering (Search, Role, Status)
@@ -602,7 +620,7 @@ async function run() {
         if (status) query.status = status;
         const result = await usersCollection.find(query).toArray();
         res.send(result);
-      }
+      },
     );
 
     // 1. Get all loan applications (with optional filtering)
@@ -616,7 +634,7 @@ async function run() {
           .sort({ appliedAt: -1 })
           .toArray();
         res.send(result);
-      }
+      },
     );
 
     // 2. Update Loan Application Status
@@ -636,7 +654,10 @@ async function run() {
           },
         };
 
-        const result = await applicationsCollection.updateOne(filter, updateDoc);
+        const result = await applicationsCollection.updateOne(
+          filter,
+          updateDoc,
+        );
 
         if (result.modifiedCount > 0) {
           res.send({
@@ -648,13 +669,13 @@ async function run() {
             message: "Loan application not found or no changes made",
           });
         }
-      }
+      },
     );
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
+      "Pinged your deployment. You successfully connected to MongoDB!",
     );
   } finally {
     // Ensures that the client will close when you finish/error
