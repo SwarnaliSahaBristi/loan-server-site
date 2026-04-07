@@ -2,6 +2,7 @@
 
 LoanLink Server is a scalable and secure backend system built to power a modern loan management platform. It provides RESTful APIs for user authentication, loan processing, approval workflows, and secure financial data handling.
 
+
 🚀 Features
 🔐 JWT-based secure authentication
 👤 Role-based access control (Admin / User)
@@ -26,6 +27,8 @@ const jsonData = fs.readFileSync('./serviceAccountKey.json')
 const base64String = Buffer.from(jsonData, 'utf-8').toString('base64')
 
 console.log(base64String)
+
+
 ⚙️ How to use
 Run the script:
 node serviceKeyConverter.js
@@ -33,18 +36,24 @@ Copy the generated Base64 string
 Store it in your .env file:
 FB_SERVICE_KEY=your_base64_encoded_key
 Decode it inside your server when needed
+
+
 🛠️ Tech Stack
 Backend: Node.js, Express.js
 Database: MongoDB (Mongoose)
 Authentication: JSON Web Token (JWT)
 Environment: dotenv
 Version Control: Git & GitHub
+
+
 📁 Project Structure
+
 LoanLink-Server/
 │── vercel.json
 │── serviceKeyConverter.js
 │── index.js
 │── .env
+
 ⚙️ Installation & Setup
 1️⃣ Clone the repository
 git clone https://github.com/SwarnaliSahaBristi/loan-server-site.git
@@ -59,6 +68,8 @@ CLIENT_DOMAIN=your_client_domain
 MONGODB_URI=your_mongodb_connection_string
 STRIPE_SECRET_KEY=your_secret_key
 FB_SERVICE_KEY=your_base64_encoded_service_key
+
+
 4️⃣ Run the server
 npm run dev
 
